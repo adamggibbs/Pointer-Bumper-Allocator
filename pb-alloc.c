@@ -124,18 +124,35 @@ void init () {
  *         unsuccessful.
  */
 void* malloc (size_t size) {
-
+  //initialize the heap if there is no heap region yet
   init();
-
+  
+  // if requested size is 0, return nothing because there is nothing to do
   if (size == 0) {
     return NULL;
   }
-
+  
+  // the total allocated block size will be:
+  // the requested size plus the size of its metadata header
+  // store this value in total_size
   size_t    total_size = size + sizeof(header_s);
+
+  // place the pointer for the header at the next free address in
+  // the virtual address space which is stored in free_addr
   header_s* header_ptr = (header_s*)free_addr;
+
+  // place the pointer for the allocated block after the header
+  // this address will be at the next free address plus whatever
+  // the size of the header is
   void*     block_ptr  = (void*)(free_addr + sizeof(header_s));
 
+  // shift free_addr pointer down the heap total_size bytes
+  // to mark where the new free_addr is and store this new free_addr
   intptr_t new_free_addr = free_addr + total_size;
+
+  // if new_free_addr is beyond the end of the heap, return null
+  // to signify that the heap is full when the next allocation is attempted
+  // else make new_free_addr the new free_addr 
   if (new_free_addr > end_addr) {
 
     return NULL;
@@ -145,8 +162,11 @@ void* malloc (size_t size) {
     free_addr = new_free_addr;
 
   }
-
+  
+  // store the size of the allocated block in its header
   header_ptr->size = size;
+
+  //return the pointer to the allocated block
   return block_ptr;
 
 } // malloc()
@@ -212,27 +232,46 @@ void* calloc (size_t nmemb, size_t size) {
  */
 void* realloc (void* ptr, size_t size) {
 
+  // if there is no given block, then simply return
+  // a new block of given size using malloc()
   if (ptr == NULL) {
     return malloc(size);
   }
 
+  // if the requested size is 0, then free the current block as
+  // it is no longer needed. Return NULL to signify a block of size 0.
   if (size == 0) {
     free(ptr);
     return NULL;
   }
-
+  
+  // find the header of the old block by taking the address of the block and
+  // shifting backwards in the address space the number of bytes equivalent to
+  // the size of the header
   header_s* old_header = (header_s*)((intptr_t)ptr - sizeof(header_s));
+  // with a pointer to the header, store the size of the old block which
+  // is stored in the header
   size_t    old_size   = old_header->size;
 
+  // if the requested size is less than the old size, then the old block
+  // is sufficient and the old pointer can be returned
   if (size <= old_size) {
     return ptr;
   }
-
+  
+  // if the requested size is more than the size of the old block then a new
+  // block must be allocated. Allocate a new block using malloc()
   void* new_ptr = malloc(size);
+
+  // as long as the newly allocated block of the requested size was allocated successfully,
+  // copy the contents of the old block to the new block and free the current pointer
+  // to the old block
   if (new_ptr != NULL) {
     memcpy(new_ptr, ptr, old_size);
     free(ptr);
   }
+
+  // return the pointer to the new block with contents copied over
   return new_ptr;
   
 } // realloc()
