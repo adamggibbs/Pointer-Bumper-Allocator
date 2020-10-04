@@ -131,12 +131,29 @@ void* malloc (size_t size) {
   if (size == 0) {
     return NULL;
   }
+
+  // pad the address by the following:
+  // if there are less than 8 bytes until next double word alignment
+  // that means we can't fit a header before the next double word alignment
+  // so then shift the free_addr pointer forward 16 bytes and align it to the next
+  // double word alignment
+  // else align the free_addr pointer to the next double word alignment
+  // in both cases subtract 8 bytes from the double word alignment at the end
+  // in order to line up the header so the block is created at the
+  // double word alignment
+  if( free_addr % 16 < 8){
+    //free_addr = free_addr + 16 + (16 - free_addr % 16) - 8;
+    free_addr = free_addr + 24 - (free_addr % 16);
+  } else {
+    //free_addr = free_addr + (16 - free_addr % 16) - 8;
+    free_addr = free_addr + 8 - (free_addr % 16);
+  }
   
   // the total allocated block size will be:
   // the requested size plus the size of its metadata header
   // store this value in total_size
   size_t    total_size = size + sizeof(header_s);
-
+  
   // place the pointer for the header at the next free address in
   // the virtual address space which is stored in free_addr
   header_s* header_ptr = (header_s*)free_addr;
